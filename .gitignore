@@ -1,0 +1,23 @@
+﻿# Secrets & Environment
+.env
+*.env.local
+
+# Python Virtual Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Execution Scratch & Temporary Scripts
+outputs/temp_backtest.py
+
+# IDE Files
+.vscode/
+.idea/
+*.swp
