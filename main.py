@@ -40,18 +40,11 @@ def check_or_prompt_api_key():
         console.print("[red]No key provided. Exiting.[/red]")
         return False
         
-    if key_input.startswith("AIza"):
-        # Google Gemini key format
-        os.environ["GEMINI_API_KEY"] = key_input
-        os.environ["LLM_PROVIDER"] = "gemini"
-        with open(".env", "a", encoding="utf-8") as f:
-            f.write(f"\nGEMINI_API_KEY={key_input}\nLLM_PROVIDER=gemini\n")
-    else:
-        # OpenAI or other key
-        os.environ["OPENAI_API_KEY"] = key_input
-        os.environ["LLM_PROVIDER"] = "openai"
-        with open(".env", "a", encoding="utf-8") as f:
-            f.write(f"\nOPENAI_API_KEY={key_input}\nLLM_PROVIDER=openai\n")
+    os.environ["GEMINI_API_KEY"] = key_input
+    os.environ["LLM_PROVIDER"] = "gemini"
+    os.environ["MODEL_NAME"] = "gemini-3.6-flash"
+    with open(".env", "a", encoding="utf-8") as f:
+        f.write(f"\nGEMINI_API_KEY={key_input}\nLLM_PROVIDER=gemini\nMODEL_NAME=gemini-3.6-flash\n")
             
     console.print("[green]✓ Key saved to .env successfully![/green]\n")
     return True
@@ -71,6 +64,26 @@ def display_metrics_table(metrics: dict, title: str = "Results Scorecard"):
             
     console.print(table)
 
+def display_sources_table(sources: list):
+    """Displays retrieved RAG sources and relevance scores."""
+    table = Table(title="Retrieved SEC Filing Disclosures (RAG Context)", show_header=True, header_style="bold cyan")
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Document Source", style="yellow", width=30)
+    table.add_column("Ticker", style="bold green", width=8)
+    table.add_column("Relevance Score", style="cyan", width=16)
+    table.add_column("Excerpt Preview", style="white")
+    
+    for idx, s in enumerate(sources, 1):
+        preview = s.get("content", "").replace("\n", " ")[:90] + "..."
+        table.add_row(
+            str(idx),
+            s.get("source", "10-K Filing"),
+            s.get("ticker", "N/A"),
+            str(s.get("score", "N/A")),
+            preview
+        )
+    console.print(table)
+
 def run_agent(query: str):
     """Executes the query through the compiled LangGraph workflow."""
     from src.graph import build_alpha_graph
@@ -88,6 +101,7 @@ def run_agent(query: str):
         "max_retries": 3,
         "metrics": None,
         "chart_path": None,
+        "sources": None,
         "final_report": "",
         "messages": []
     }
@@ -100,6 +114,8 @@ def run_agent(query: str):
             for node_name, state_update in event.items():
                 if node_name == "classify_intent":
                     status.update(f"[cyan]Intent classified:[/cyan] {state_update.get('intent')} for ticker {state_update.get('ticker')}")
+                elif node_name == "filing_rag":
+                    status.update("[cyan]Searching SEC 10-K vector store & synthesizing citation report...[/cyan]")
                 elif node_name == "generate_code":
                     status.update(f"[cyan]Generated backtest script...[/cyan] Executing locally")
                 elif node_name == "execute_code":
@@ -116,16 +132,21 @@ def run_agent(query: str):
                 
                 final_state.update(state_update)
 
-    # 1. Display Metrics Scorecard
+    # 1. Display Metrics Scorecard (if numerical health or backtest)
     if final_state.get("metrics"):
         console.print("\n")
         display_metrics_table(final_state["metrics"], title=f"Scorecard for {final_state.get('ticker', 'Asset')}")
         
-    # 2. Display Equity Curve location if available
+    # 2. Display RAG Sources (if qualitative filing search)
+    if final_state.get("sources"):
+        console.print("\n")
+        display_sources_table(final_state["sources"])
+
+    # 3. Display Equity Curve location if available
     if final_state.get("chart_path") and os.path.exists(final_state["chart_path"]):
         console.print(f"\n📈 [bold green]Equity Curve Plot Saved:[/bold green] [underline]{os.path.abspath(final_state['chart_path'])}[/underline]\n")
         
-    # 3. Display Final Synthesis
+    # 4. Display Final Synthesis Report
     if final_state.get("final_report"):
         console.print(Panel(
             Markdown(final_state["final_report"]),
@@ -146,13 +167,13 @@ def main():
         return
 
     console.print(Panel.fit(
-        "[bold cyan]AlphaAgent: Quant Strategy & Financial Health AI[/bold cyan]\n"
-        "[dim]Powered by LangChain & LangGraph | Ultra-Low Token Architecture[/dim]\n\n"
+        "[bold cyan]AlphaAgent: Quant Strategy, Financial Health & SEC 10-K RAG AI[/bold cyan]\n"
+        "[dim]Powered by LangChain & LangGraph | Vector RAG & Self-Healing Architecture[/dim]\n\n"
         "Sample commands you can try:\n"
-        "  1. [yellow]Test a 20 and 50 SMA crossover strategy on NVDA for the last 2 years[/yellow]\n"
-        "  2. [yellow]Evaluate financial health and bankruptcy risk of Boeing (BA)[/yellow]\n"
-        "  3. [yellow]Backtest RSI oversold (<30) strategy on AAPL[/yellow]\n"
-        "  4. [yellow]Audit financial health of Microsoft (MSFT)[/yellow]\n"
+        "  1. [yellow]What specific debt and FAA regulatory risks did Boeing disclose in their 10-K?[/yellow]\n"
+        "  2. [yellow]What are Apple's supply chain and TSMC chip manufacturing risks?[/yellow]\n"
+        "  3. [yellow]Test a 20 and 50 SMA crossover strategy on NVDA for the last 1 year[/yellow]\n"
+        "  4. [yellow]Evaluate financial health and bankruptcy risk of Boeing (BA)[/yellow]\n"
         "Type [bold red]'exit'[/bold red] or [bold red]'quit'[/bold red] to close.",
         title="Welcome to AlphaAgent"
     ))

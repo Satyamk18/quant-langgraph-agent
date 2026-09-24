@@ -11,10 +11,12 @@ from src.prompts import (
     CODE_GEN_SYSTEM_PROMPT,
     CODE_FIX_SYSTEM_PROMPT,
     STRATEGY_SYNTHESIS_PROMPT,
-    HEALTH_SYNTHESIS_PROMPT
+    HEALTH_SYNTHESIS_PROMPT,
+    FILING_RAG_PROMPT
 )
 from src.tools.financial_data import fetch_financial_metrics
 from src.tools.executor import execute_backtest_code
+from src.rag.vectorstore import query_filings
 
 def extract_text_content(content: Any) -> str:
     """Extracts raw text string from LLM response (handles both string and list format)."""
@@ -35,7 +37,7 @@ def clean_python_code(raw_code: str) -> str:
 # ==================== NODE DEFINITIONS ====================
 
 def classify_intent_node(state: AgentState) -> Dict[str, Any]:
-    """Classifies user query intent and extracts the ticker symbol."""
+    """Classifies user query intent into backtest, financial_health, or filing_qa."""
     llm = get_llm(temperature=0.0)
     messages = [
         SystemMessage(content=INTENT_SYSTEM_PROMPT),
@@ -44,7 +46,6 @@ def classify_intent_node(state: AgentState) -> Dict[str, Any]:
     response = llm.invoke(messages)
     content = extract_text_content(response.content)
     
-    # Extract JSON
     intent = "backtest"
     ticker = "SPY"
     try:
@@ -54,20 +55,61 @@ def classify_intent_node(state: AgentState) -> Dict[str, Any]:
             intent = data.get("intent", "backtest")
             ticker = data.get("ticker", "SPY").upper()
     except Exception:
-        # Fallback keyword matching
-        if any(w in state["query"].lower() for w in ["health", "debt", "balance sheet", "solvency", "pe ratio", "ratios", "audit"]):
-            intent = "financial_health"
-            
+        pass
+        
+    # Heuristic fallback safety
+    q = state["query"].lower()
+    if any(w in q for w in ["10-k", "filing", "risk factor", "disclose", "annual report", "supply chain", "footnote", "faa", "why is", "qualitative"]):
+        intent = "filing_qa"
+    elif any(w in q for w in ["balance sheet", "health", "debt to equity", "solvency", "pe ratio", "ratios", "altman"]):
+        intent = "financial_health"
+        
     return {
         "intent": intent,
         "ticker": ticker
     }
 
-def route_intent_edge(state: AgentState) -> Literal["financial_health", "generate_code"]:
+def route_intent_edge(state: AgentState) -> Literal["financial_health", "generate_code", "filing_rag"]:
     """Routes query based on classified intent."""
     if state["intent"] == "financial_health":
         return "financial_health"
+    elif state["intent"] == "filing_qa":
+        return "filing_rag"
     return "generate_code"
+
+def filing_rag_node(state: AgentState) -> Dict[str, Any]:
+    """
+    Retrieves qualitative 10-K disclosures from ChromaDB vector store
+    and synthesizes an answer with exact source citations.
+    """
+    ticker = state.get("ticker", "SPY")
+    sources = query_filings(query=state["query"], ticker=ticker, top_k=4)
+    
+    if not sources:
+        report = f"No relevant filing disclosures found in vector database for {ticker}."
+        return {"sources": [], "final_report": report}
+        
+    # Format retrieved excerpts into context
+    context_chunks = []
+    for idx, s in enumerate(sources, 1):
+        context_chunks.append(
+            f"--- Excerpt {idx} [Document: {s['source']}, Relevance Score: {s['score']}] ---\n"
+            f"{s['content']}\n"
+        )
+    formatted_context = "\n".join(context_chunks)
+    
+    system_prompt = FILING_RAG_PROMPT.format(context=formatted_context)
+    llm = get_llm(temperature=0.2)
+    response = llm.invoke([
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=f"User Question: {state['query']}")
+    ])
+    report_text = extract_text_content(response.content)
+    
+    return {
+        "sources": sources,
+        "final_report": report_text
+    }
 
 def financial_health_node(state: AgentState) -> Dict[str, Any]:
     """
@@ -209,6 +251,7 @@ def build_alpha_graph():
     
     # Register Nodes
     workflow.add_node("classify_intent", classify_intent_node)
+    workflow.add_node("filing_rag", filing_rag_node)
     workflow.add_node("financial_health", financial_health_node)
     workflow.add_node("generate_code", generate_code_node)
     workflow.add_node("execute_code", execute_code_node)
@@ -218,15 +261,19 @@ def build_alpha_graph():
     # Register Edges
     workflow.add_edge(START, "classify_intent")
     
-    # Conditional edge from intent classification
+    # Conditional edge from intent classification (3-Way Branching)
     workflow.add_conditional_edges(
         "classify_intent",
         route_intent_edge,
         {
+            "filing_rag": "filing_rag",
             "financial_health": "financial_health",
             "generate_code": "generate_code"
         }
     )
+    
+    # RAG branch completes after synthesis
+    workflow.add_edge("filing_rag", END)
     
     # Financial Health branch completes after synthesis
     workflow.add_edge("financial_health", END)
