@@ -1,53 +1,66 @@
 ﻿# AlphaAgent 📈🤖
 
-An autonomous, token-efficient quantitative financial intelligence agent built on **LangChain** and **LangGraph**.
+An autonomous, token-efficient financial intelligence platform built on **LangChain**, **LangGraph**, and **Google Gemini** (`gemini-3.6-flash`).
 
-AlphaAgent solves two real-world capital market problems:
-1. **Quantitative Strategy Backtesting with Autonomous Self-Healing**: Translates natural language trading hypotheses into executable Python code, runs backtests against historical market data, and iteratively fixes runtime errors using an automated self-healing feedback loop.
-2. **Deterministic Corporate Financial Health & Solvency Audits**: Ingests real-world balance sheets and income statements via `yfinance` to compute critical financial health indicators (including the **Altman Z-Score** for bankruptcy prediction, Piotroski scores, and liquidity ratios) with **zero LLM token consumption**.
+AlphaAgent bridges the gap between **quantitative market data** and **qualitative regulatory disclosures** through three core agentic workflows:
+1. **Quantitative Strategy Backtesting with Autonomous Self-Healing**: Translates plain-English trading ideas into executable Python code, runs backtests over historical market data in an isolated sandbox, and iteratively corrects code bugs in a cyclic feedback loop.
+2. **Deterministic Corporate Financial Health & Solvency Audits**: Ingests live financial statements via `yfinance` to compute critical solvency indicators (including the **Altman Z-Score** for bankruptcy prediction, Piotroski scores, and liquidity ratios) with **zero LLM token consumption**.
+3. **Qualitative SEC 10-K Filing RAG (Retrieval-Augmented Generation)**: Uses a persistent **ChromaDB** vector store and Google's `gemini-embedding-001` to ingest annual reports, retrieve semantic risk factors and footnotes, and synthesize forensic analyses with **exact source citations**.
 
 ---
 
-## 🏛️ Architecture & Workflow
+## 🏛️ System Architecture
 
-AlphaAgent utilizes a hybrid **"Brain vs. Hands"** architecture: heavy math, live market data downloads, and backtesting formulas are offloaded to local deterministic Python code, while the LLM is reserved for intent parsing, code generation, and qualitative executive synthesis.
+AlphaAgent utilizes a hybrid **"Brain vs. Hands"** architecture. Heavy math, market data extraction, vector similarity scoring, and backtest simulations are executed deterministically on your local CPU for maximum speed and minimal token cost. The LLM is reserved for intent triage, strategy formulation, self-healing bug correction, and executive synthesis.
 
 ```mermaid
 flowchart TD
-    Start([User Query]) --> ClassifyIntent[Node: classify_intent]
+    UserQuery([User Input Query]) --> ClassifyIntent[Node: classify_intent]
     
-    %% Intent Branching
-    ClassifyIntent -->|Financial Health Audit| FinHealth[Node: financial_health]
-    ClassifyIntent -->|Strategy Backtest| GenCode[Node: generate_code]
+    %% Intent Branching (3-Way)
+    ClassifyIntent -->|1. Strategy Backtest| GenCode[Node: generate_code]
+    ClassifyIntent -->|2. Quantitative Health| FinHealth[Node: financial_health]
+    ClassifyIntent -->|3. Qualitative 10-K Q&A| FilingRAG[Node: filing_rag]
     
-    %% Financial Health Flow
-    subgraph Fundamental Audit [Zero LLM Tokens Math]
-        FinHealth --> FetchData[yfinance: Balance Sheet & Income Statement]
-        FetchData --> CalcRatios[Compute Altman Z-Score, Debt/Equity, FCF]
-        CalcRatios --> LLMHealthSynthesis[LLM CFA Health Synthesis]
-    end
-    LLMHealthSynthesis --> EndHealth([Final Financial Health Report])
-    
-    %% Backtest Flow
-    subgraph Quant Engine [Self-Healing Execution Loop]
+    %% Branch 1: Backtesting Engine
+    subgraph Backtest Engine [Self-Healing Execution Loop]
         GenCode --> ExecuteCode[Node: execute_code: Subprocess Sandbox]
         ExecuteCode --> ErrorCheck{Did it Crash?}
         ErrorCheck -->|Yes & Retries < 3| FixCode[Node: fix_code: Self-Healing]
         FixCode --> ExecuteCode
         ErrorCheck -->|No / Max Retries| SynthReport[Node: synthesize_report]
     end
-    SynthReport --> EndBacktest([Scorecard, Equity Curve & PM Analysis])
+    SynthReport --> EndBacktest([Scorecard, Equity Curve Plot & PM Analysis])
+
+    %% Branch 2: Quantitative Fundamental Audit
+    subgraph Fundamental Audit [Zero LLM Tokens Math]
+        FinHealth --> FetchData[yfinance: Balance Sheet & Income Statement]
+        FetchData --> CalcRatios[Compute Altman Z-Score, Debt/Equity, FCF]
+        CalcRatios --> LLMHealthSynthesis[LLM CFA Health Synthesis]
+    end
+    LLMHealthSynthesis --> EndHealth([Solvency Scorecard & Executive Health Report])
+
+    %% Branch 3: Qualitative SEC 10-K RAG
+    subgraph RAG Subsystem [ChromaDB + Gemini Embeddings]
+        FilingRAG --> VectorSearch[Query ChromaDB with Relevance Scores]
+        VectorSearch --> ExtractCitations[Format Footnotes & Source Metadata]
+        ExtractCitations --> LLMRAGSynthesis[Forensic 10-K Citation Synthesis]
+    end
+    LLMRAGSynthesis --> EndRAG([Citation Table & SEC Disclosure Report])
 ```
 
 ---
 
 ## ✨ Key Features
 
-- **Stateful Graph Machine (`LangGraph`)**: Explicit `TypedDict` state schema managing transitions, error logs, and metrics.
-- **Autonomous Self-Healing Loop**: If a generated backtest throws a `KeyError`, `IndexError`, or syntax issue, LangGraph catches the traceback and routes it back to the agent to rewrite the code (up to 3 retries).
-- **Subprocess Execution Sandbox**: Isolated local execution environment with timeout safeguards, stdout/stderr capture, and equity curve chart plotting.
-- **Ultra-Low Token Architecture**: Total query cost is ~1,000–2,000 tokens (< $0.002 per run).
-- **Dual LLM Support**: Works seamlessly with Google Gemini (free tier) and OpenAI.
+- **3-Way Stateful Graph Routing (`LangGraph`)**: Explicit `TypedDict` state schema governing transitions across quantitative backtesting, numerical ratio analysis, and qualitative RAG.
+- **Autonomous Self-Healing Reflection Loop**: Catches Python runtime exceptions (`KeyError`, `IndexError`, zero division) in the sandbox and passes the stack trace back to the agent to rewrite and re-run code (up to 3 retries).
+- **Agentic RAG Engine with ChromaDB**:
+  - Persistent vector store in `data/chroma_db/`.
+  - Semantic financial chunking (`chunk_size=900`, `chunk_overlap=150`) to preserve complex financial tables and debt covenants.
+  - Strict grounding in official 10-K filings with explicit `[Source: document, Section: ...]` citation tags to eliminate hallucinations.
+- **Subprocess Execution Sandbox**: Isolated local execution with timeout protection, stdout/stderr capture, and matplotlib equity curve generation.
+- **Ultra-Low Token Economics**: Total run cost is ~1,000–2,000 tokens (< $0.002 per run) on Gemini Flash.
 
 ---
 
@@ -56,12 +69,12 @@ flowchart TD
 ### 1. Clone & Setup Virtual Environment
 
 ```bash
-git clone https://github.com/<your-username>/alpha-agent.git
-cd alpha-agent
+git clone https://github.com/Satyamk18/quant-langgraph-agent.git
+cd quant-langgraph-agent
 
 # Create virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+.\.venv\Scripts\activate  # On Linux/macOS: source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -69,39 +82,60 @@ pip install -r requirements.txt
 
 ### 2. Configure Environment Variables
 
-Copy `.env.example` to `.env`:
-```bash
-cp .env.example .env
-```
-Add your API key (get a free key at [Google AI Studio](https://aistudio.google.com/app/apikey)):
+Create your `.env` file based on `.env.example`:
 ```ini
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your_gemini_api_key_here
 MODEL_NAME=gemini-3.6-flash
 ```
+*(Get a free Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)).*
 
 ### 3. Run the Agent
 
-**Interactive Mode:**
+**Interactive Chat Mode:**
 ```bash
 python main.py
 ```
 
-**Single Command Query:**
+**Single Command Queries:**
 ```bash
-python main.py --query "Evaluate the financial health and bankruptcy risk of Boeing (BA)"
-```
-```bash
+# 1. Qualitative SEC 10-K RAG Query
+python main.py --query "What specific debt obligations and FAA oversight risks did Boeing disclose in their 10-K filing?"
+
+# 2. Supply Chain & Chip Fabrication RAG Query
+python main.py --query "What are Apple's supply chain and TSMC chip manufacturing risks according to their 10-K?"
+
+# 3. Quantitative Strategy Backtest with Charting
 python main.py --query "Test a 20 and 50 SMA crossover strategy on NVDA for the last 1 year"
+
+# 4. Deterministic Financial Health & Solvency Audit
+python main.py --query "Evaluate the financial health and bankruptcy risk of Boeing (BA)"
 ```
 
 ---
 
-## 🧪 Testing
+## 🧪 Automated Test Suites
 
-Run the automated 5-point verification suite:
+AlphaAgent includes comprehensive test suites covering both the core graph engine and the RAG vector pipeline:
+
+### 1. Core Verification Suite (Tools, Sandbox, Self-Healing & Edges)
 ```bash
 python tests/test_agent.py
+```
+```
+==========================================
+ALL 5 VERIFICATION TESTS PASSED (5/5)!
+==========================================
+```
+
+### 2. RAG Verification Suite (ChromaDB Ingestion, Ticker Filtering & Citations)
+```bash
+python tests/test_rag.py
+```
+```
+==========================================
+ALL 4 RAG TESTS PASSED (4/4)!
+==========================================
 ```
 
 ---
@@ -112,17 +146,24 @@ python tests/test_agent.py
 alpha-agent/
 ├── src/
 │   ├── state.py              # LangGraph AgentState TypedDict schema
-│   ├── graph.py              # LangGraph StateGraph, nodes, and conditional edges
-│   ├── prompts.py            # System prompts for quant coder, fixer, and analyst
+│   ├── graph.py              # LangGraph StateGraph, 3-way routing & self-healing edges
+│   ├── prompts.py            # Prompts for quant coder, debugger, CFA & 10-K analyst
 │   ├── llm.py                # LLM factory (Gemini / OpenAI)
+│   ├── rag/
+│   │   ├── embeddings.py     # Gemini text-embedding-001 factory
+│   │   └── vectorstore.py    # ChromaDB persistent store, chunking & retrieval
 │   └── tools/
 │       ├── executor.py       # Sandboxed local Python execution runner
 │       └── financial_data.py # Deterministic yfinance ratio & Altman Z-score calculator
-├── outputs/                  # Generated equity curve charts & scripts
+├── data/
+│   └── filings/              # Official SEC Form 10-K annual reports (Markdown/Text)
+├── outputs/                  # Generated equity curve plots & backtest scripts
 ├── tests/
-│   └── test_agent.py         # 5-point automated verification suite
-├── main.py                   # Rich CLI interface
-└── requirements.txt          # Project dependencies
+│   ├── test_agent.py         # 5-point core verification suite
+│   └── test_rag.py           # 4-point RAG & vectorstore test suite
+├── main.py                   # Rich terminal CLI with citations & scorecard tables
+├── requirements.txt          # Production dependencies
+└── README.md                 # Project documentation
 ```
 
 ---
