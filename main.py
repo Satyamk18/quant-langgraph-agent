@@ -84,7 +84,7 @@ def display_sources_table(sources: list):
         )
     console.print(table)
 
-def run_agent(query: str):
+def run_agent(query: str, debug: bool = False):
     """Executes the query through the compiled LangGraph workflow."""
     from src.graph import build_alpha_graph
     
@@ -107,30 +107,46 @@ def run_agent(query: str):
     }
     
     console.print(f"\n[bold blue]Running AlphaAgent on query:[/bold blue] '{query}'\n")
+    if debug:
+        console.print("[bold magenta]🔍 DEBUG MODE ON: Printing full state transitions after each node[/bold magenta]\n")
     
-    with console.status("[bold green]Executing LangGraph workflow...[/bold green]", spinner="dots") as status:
-        final_state = initial_state
+    final_state = initial_state
+    
+    if debug:
+        # Step-by-step debug stream
         for event in graph.stream(initial_state):
             for node_name, state_update in event.items():
-                if node_name == "classify_intent":
-                    status.update(f"[cyan]Intent classified:[/cyan] {state_update.get('intent')} for ticker {state_update.get('ticker')}")
-                elif node_name == "filing_rag":
-                    status.update("[cyan]Searching SEC 10-K vector store & synthesizing citation report...[/cyan]")
-                elif node_name == "generate_code":
-                    status.update(f"[cyan]Generated backtest script...[/cyan] Executing locally")
-                elif node_name == "execute_code":
-                    if state_update.get("error_log"):
-                        status.update("[yellow]Execution encountered an error. Triggering self-healing...[/yellow]")
-                    else:
-                        status.update("[green]Backtest executed successfully![/green]")
-                elif node_name == "fix_code":
-                    status.update(f"[yellow]Self-healing retry #{state_update.get('retry_count')}...[/yellow]")
-                elif node_name == "financial_health":
-                    status.update("[cyan]Fetched fundamental data & synthesizing health audit...[/cyan]")
-                elif node_name == "synthesize_report":
-                    status.update("[green]Generating final executive summary...[/green]")
-                
+                console.print(Panel(
+                    json.dumps({k: str(v)[:200] + ('...' if len(str(v)) > 200 else '') for k, v in state_update.items()}, indent=2),
+                    title=f"[bold green]Node Finished: {node_name}[/bold green]",
+                    subtitle="State Delta",
+                    border_style="cyan"
+                ))
                 final_state.update(state_update)
+    else:
+        # Spinner production stream
+        with console.status("[bold green]Executing LangGraph workflow...[/bold green]", spinner="dots") as status:
+            for event in graph.stream(initial_state):
+                for node_name, state_update in event.items():
+                    if node_name == "classify_intent":
+                        status.update(f"[cyan]Intent classified:[/cyan] {state_update.get('intent')} for ticker {state_update.get('ticker')}")
+                    elif node_name == "filing_rag":
+                        status.update("[cyan]Searching SEC 10-K vector store & synthesizing citation report...[/cyan]")
+                    elif node_name == "generate_code":
+                        status.update(f"[cyan]Generated backtest script...[/cyan] Executing locally")
+                    elif node_name == "execute_code":
+                        if state_update.get("error_log"):
+                            status.update("[yellow]Execution encountered an error. Triggering self-healing...[/yellow]")
+                        else:
+                            status.update("[green]Backtest executed successfully![/green]")
+                    elif node_name == "fix_code":
+                        status.update(f"[yellow]Self-healing retry #{state_update.get('retry_count')}...[/yellow]")
+                    elif node_name == "financial_health":
+                        status.update("[cyan]Fetched fundamental data & synthesizing health audit...[/cyan]")
+                    elif node_name == "synthesize_report":
+                        status.update("[green]Generating final executive summary...[/green]")
+                    
+                    final_state.update(state_update)
 
     # 1. Display Metrics Scorecard (if numerical health or backtest)
     if final_state.get("metrics"):
@@ -157,13 +173,14 @@ def run_agent(query: str):
 def main():
     parser = argparse.ArgumentParser(description="AlphaAgent CLI")
     parser.add_argument("-q", "--query", type=str, help="Single query to run directly without interactive prompt")
+    parser.add_argument("-d", "--debug", action="store_true", help="Print live state deltas for each node in the graph")
     args = parser.parse_args()
 
     if not check_or_prompt_api_key():
         return
 
     if args.query:
-        run_agent(args.query)
+        run_agent(args.query, debug=args.debug)
         return
 
     console.print(Panel.fit(
@@ -186,7 +203,7 @@ def main():
             if query.lower() in ["exit", "quit", "q"]:
                 console.print("[dim]Goodbye![/dim]")
                 break
-            run_agent(query)
+            run_agent(query, debug=args.debug)
         except KeyboardInterrupt:
             console.print("\n[dim]Session interrupted. Goodbye![/dim]")
             break
