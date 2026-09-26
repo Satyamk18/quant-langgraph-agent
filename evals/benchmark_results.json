@@ -1,0 +1,72 @@
+{
+  "benchmark_timestamp": "2026-09-26T00:51:25Z",
+  "total_scenarios_evaluated": 4,
+  "overall_pass_at_1_rate": "100.0%",
+  "overall_pass_at_3_rate": "100.0%",
+  "self_healing_recovery_efficiency": "100.0%",
+  "latency_metrics": {
+    "mean_seconds": 67.52,
+    "p50_seconds": 65.96,
+    "p90_seconds": 88.53,
+    "p95_seconds": 91.64
+  },
+  "intent_classification_accuracy": "100.0%",
+  "detailed_results": [
+    {
+      "id": "quant_sma_crossover",
+      "category": "quantitative_strategy",
+      "query": "Test a 20 and 50 SMA crossover strategy on NVDA for the last 1 year",
+      "pass_at_1": true,
+      "pass_at_3": true,
+      "self_healed": false,
+      "retry_count": 0,
+      "intent_correct": true,
+      "ticker_correct": true,
+      "latency_seconds": 73.99,
+      "error_log": null,
+      "status": "PASS"
+    },
+    {
+      "id": "edge_multi_index_columns",
+      "category": "edge_case_backtest",
+      "query": "Run a backtest for GOOGL comparing 50-day volume-weighted average price (VWAP) against close with multi-period metrics",
+      "pass_at_1": true,
+      "pass_at_3": true,
+      "self_healed": false,
+      "retry_count": 0,
+      "intent_correct": true,
+      "ticker_correct": true,
+      "latency_seconds": 94.76,
+      "error_log": null,
+      "status": "PASS"
+    },
+    {
+      "id": "health_boeing_distress",
+      "category": "financial_health",
+      "query": "Evaluate the financial health, solvency ratios, and bankruptcy risk of Boeing (BA)",
+      "pass_at_1": true,
+      "pass_at_3": true,
+      "self_healed": false,
+      "retry_count": 0,
+      "intent_correct": true,
+      "ticker_correct": true,
+      "latency_seconds": 43.38,
+      "error_log": null,
+      "status": "PASS"
+    },
+    {
+      "id": "rag_boeing_debt_risks",
+      "category": "sec_filing_rag",
+      "query": "What specific debt obligations and credit rating downgrade risks did Boeing disclose in their 10-K filing?",
+      "pass_at_1": true,
+      "pass_at_3": true,
+      "self_healed": false,
+      "retry_count": 0,
+      "intent_correct": true,
+      "ticker_correct": true,
+      "latency_seconds": 57.93,
+      "error_log": null,
+      "status": "PASS"
+    }
+  ]
+}

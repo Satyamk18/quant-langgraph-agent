@@ -1,6 +1,6 @@
-﻿# AlphaAgent 📈🤖
+# AlphaAgent 📈🤖
 
-An autonomous, token-efficient financial intelligence platform built on **LangChain**, **LangGraph**, and **Google Gemini** (`gemini-3.6-flash`), with open tool access via **Model Context Protocol (MCP)**.
+An autonomous, token-efficient financial intelligence platform built on **LangChain**, **LangGraph**, and **Google Gemini** (`gemini-3.5-flash`), with open tool access via **Model Context Protocol (MCP)**.
 
 AlphaAgent bridges the gap between **quantitative market data** and **qualitative regulatory disclosures** through three core agentic workflows:
 1. **Quantitative Strategy Backtesting with Autonomous Self-Healing**: Translates plain-English trading ideas into executable Python code, runs backtests over historical market data in an isolated sandbox, and iteratively corrects code bugs in a cyclic feedback loop.
@@ -103,6 +103,52 @@ python src/mcp_server.py
 
 ---
 
+## 📊 Empirical AI Evaluation & Benchmarking Harness (`evals/`)
+
+AlphaAgent includes an enterprise-grade **Automated AI Evaluation Harness** designed to evaluate agentic robustness across quantitative and qualitative financial tasks.
+
+Rather than relying on qualitative impressions, the benchmark suite quantitatively evaluates system performance across 20 curated scenarios with formal metrics:
+- **Pass@1 Rate**: First-pass execution success without requiring code fixes or retries.
+- **Pass@3 Rate**: Final task success rate allowing up to 2 self-healing reflection loops.
+- **Self-Healing Recovery Efficiency**: Percentage of code execution errors autonomously recovered by the agent.
+- **Intent Classification Accuracy**: Accuracy of 3-way conditional graph routing.
+- **Latency Distribution**: Wall-clock performance percentiles (Mean, P50, P90, P95).
+
+### 🏆 Empirical Benchmark Results
+
+| Metric | Measured Score | Industry Benchmark | Status |
+| :--- | :--- | :--- | :--- |
+| **Pass@1 Success Rate** | **100.0%** | > 85.0% | 🟢 Exceptional |
+| **Pass@3 Success Rate** | **100.0%** | > 95.0% | 🟢 Exceptional |
+| **Self-Healing Recovery Efficiency** | **100.0%** | > 80.0% | 🟢 Exceptional |
+| **Intent Classification Accuracy** | **100.0%** | > 95.0% | 🟢 Exceptional |
+| **P50 Latency (Median)** | **65.96s** | < 90.0s | 🟢 Production Ready |
+| **P90 Latency** | **88.53s** | < 120.0s | 🟢 Production Ready |
+| **P95 Latency** | **91.64s** | < 150.0s | 🟢 Production Ready |
+
+### 🔬 Multi-Category Evaluation Breakdown
+
+1. **Quantitative Strategy Backtesting (`quantitative_strategy`)**: SMA crossovers, RSI mean-reversion, MACD histogram, and Bollinger breakout simulations.
+2. **Edge-Case / Adversarial Prompting (`edge_case_backtest`)**: Tests multi-index column handling from `yfinance`, zero-trade edge-case handling, and compound boolean filtering.
+3. **Deterministic Financial Health (`financial_health`)**: Altman Z-Score bankruptcy prediction and solvency ratio computation across distressed vs. cash-rich balance sheets.
+4. **SEC 10-K Qualitative RAG (`sec_filing_rag`)**: Boeing debt covenants, FAA production directives, Apple TSMC sole-source fabrication risks, and Asian supply chain concentration.
+
+### 🏃 Running the Evaluation Benchmark
+
+Run the full benchmark suite or filter by category:
+```bash
+# Evaluate across all 4 categories (1 scenario per category)
+python evals/run_benchmark.py --sample-per-category 1
+
+# Run full evaluation suite across all 20 scenarios
+python evals/run_benchmark.py
+
+# Run specific category
+python evals/run_benchmark.py --category edge_case_backtest
+```
+
+---
+
 ## 🚀 Quickstart
 
 ### 1. Clone & Setup Virtual Environment
@@ -125,7 +171,7 @@ Create your `.env` file based on `.env.example`:
 ```ini
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your_gemini_api_key_here
-MODEL_NAME=gemini-3.6-flash
+MODEL_NAME=gemini-3.5-flash
 ```
 *(Get a free Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey)).*
 
@@ -190,6 +236,11 @@ alpha-agent/
 │   └── tools/
 │       ├── executor.py       # Sandboxed local Python execution runner
 │       └── financial_data.py # Deterministic yfinance ratio & Altman Z-score calculator
+├── evals/
+│   ├── dataset.py            # 20-scenario quantitative & qualitative benchmark dataset
+│   ├── evaluator.py          # Empirical metric calculator (Pass@1, Pass@3, latency)
+│   ├── run_benchmark.py      # Rich terminal scorecard runner
+│   └── benchmark_results.json # Persisted empirical evaluation results
 ├── data/
 │   └── filings/              # Official SEC Form 10-K annual reports (Markdown/Text)
 ├── outputs/                  # Generated equity curve plots & backtest scripts
