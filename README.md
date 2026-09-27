@@ -2,83 +2,67 @@
 
 An autonomous, token-efficient financial intelligence platform built on **LangChain**, **LangGraph**, and **Google Gemini** (`gemini-3.5-flash`), with open tool access via **Model Context Protocol (MCP)**.
 
-AlphaAgent bridges the gap between **quantitative market data** and **qualitative regulatory disclosures** through three core agentic workflows:
-1. **Quantitative Strategy Backtesting with Autonomous Self-Healing**: Translates plain-English trading ideas into executable Python code, runs backtests over historical market data in an isolated sandbox, and iteratively corrects code bugs in a cyclic feedback loop.
-2. **Deterministic Corporate Financial Health & Solvency Audits**: Ingests live financial statements via `yfinance` to compute critical solvency indicators (including the **Altman Z-Score** for bankruptcy prediction, Piotroski scores, and liquidity ratios) with **zero LLM token consumption**.
-3. **Qualitative SEC 10-K Filing RAG (Retrieval-Augmented Generation)**: Uses a persistent **ChromaDB** vector store and Google's `gemini-embedding-001` to ingest annual reports, retrieve semantic risk factors and footnotes, and synthesize forensic analyses with **exact source citations**.
-4. **Universal Tool Serving via Model Context Protocol (MCP)**: Exposes all financial tools, vector RAG search, and backtest sandbox runners over standard JSON-RPC, enabling external clients (Claude Desktop, Cursor, Antigravity) to consume our engines as a decoupled microservice.
+AlphaAgent bridges the gap between **quantitative market data** and **qualitative regulatory disclosures** through four institutional workflows:
+1. **Hierarchical Multi-Agent Committee**: Coordinated by a **Supervisor Agent (Chief Investment Officer)** orchestrating a specialist worker layer (Quant Researcher, Fundamental Solvency Auditor, and SEC 10-K Forensic Auditor).
+2. **Adversarial Risk & Compliance Guardrails (Hard Veto)**: A dedicated **Chief Risk Officer Agent** evaluating quantitative strategy proposals against institutional risk budgets ($\text{Max Drawdown} \le 15.0\%$, $\text{Sharpe} \ge 1.0$, Altman Z-score solvency distress zones), triggering an autonomous re-hedging loop upon violations.
+3. **Zero-Trust Ephemeral Sandbox Execution**: Dual-mode execution engine combining a pre-execution **AST Static Security Analyzer** with a hardened **Docker Container** (`--network none`, `--memory 512m`, `--cpus 1.0`, `--cap-drop ALL`, non-root `UID 1000`) and local fallback.
+4. **Deterministic Audits & Qualitative SEC 10-K Vector RAG**: Zero-token Altman Z-Score bankruptcy prediction combined with ChromaDB semantic search over official 10-K filings with citation grounding.
+5. **Universal Tool Serving via Model Context Protocol (MCP)**: Exposes all financial tools, vector RAG search, and backtest sandbox runners over standard JSON-RPC.
 
 ---
 
-## 🏛️ System Architecture
+## 🏛️ System Architecture: Dual-Loop Multi-Agent Committee
 
-AlphaAgent utilizes a hybrid **"Brain vs. Hands"** architecture. Heavy math, market data extraction, vector similarity scoring, and backtest simulations are executed deterministically on your local CPU or isolated Docker container for maximum speed and minimal token cost. The LLM is reserved for intent triage, strategy formulation, self-healing bug correction, and executive synthesis.
+AlphaAgent features a **Dual-Loop Agentic Topology**:
+- **Inner Loop (Code Self-Healing)**: Intercepts Python syntax/runtime errors and AST security violations, prompting the agent to debug and re-run.
+- **Outer Loop (Adversarial Risk Governance)**: Intercepts strategy performance metrics; if drawdown exceeds $15\%$ or Sharpe falls below $1.0$, the Risk Officer issues a **Mandatory Re-Hedge Directive**, forcing the Quant agent to add stop-losses and compress risk before capital allocation.
 
 ```mermaid
 flowchart TD
-    subgraph Clients [Clients & Orchestrators]
-        UserCLI([AlphaAgent CLI])
-        ExternalMCP[Claude Desktop / Cursor]
+    UserQuery([User Financial Directive]) --> Supervisor[Chief Investment Officer / Supervisor Agent]
+
+    subgraph SpecialistLayer [Autonomous Specialist Worker Layer]
+        QuantAgent[Quant Strategy Researcher]
+        SolvencyAgent[Fundamental Solvency Auditor]
+        ForensicAgent[SEC 10-K Forensic Auditor]
     end
 
-    subgraph Router [LangGraph Orchestrator]
-        ClassifyIntent[Node: classify_intent]
+    Supervisor --> QuantAgent
+    Supervisor --> SolvencyAgent
+    Supervisor --> ForensicAgent
+
+    subgraph InnerLoop [Inner Loop: Zero-Trust Sandbox & Self-Healing]
+        QuantAgent --> ASTCheck[Layer 1: AST Static Security Linter]
+        ASTCheck -->|Violation| FixCode[fix_code: Syntax Debugger]
+        ASTCheck -->|Approved| SandboxExec[execute_code: Docker / Subprocess]
+        SandboxExec -->|Runtime Crash| FixCode
+        FixCode --> ASTCheck
     end
 
-    subgraph MCPServerLayer [AlphaAgent MCP Server: JSON-RPC]
-        MCPTool1["Tool: get_financial_metrics(ticker)"]
-        MCPTool2["Tool: search_sec_filings(query, ticker)"]
-        MCPTool3["Tool: run_backtest_sandbox(code)"]
+    SandboxExec -->|Success| RiskOfficer[Adversarial Risk & Compliance Officer]
+    SolvencyAgent --> RiskOfficer
+    ForensicAgent --> RiskOfficer
+
+    subgraph OuterLoop [Outer Loop: Adversarial Risk & Compliance Audit]
+        RiskOfficer -->|Veto & Mandate Re-Hedge: Drawdown > 15%| Rehedge[rehedge_code: Apply Stop-Loss]
+        Rehedge --> ASTCheck
     end
 
-    subgraph ExecutionSubsystems [Zero-Trust Local Execution Engines]
-        subgraph BacktestEngine [Zero-Trust Sandbox & Self-Healing Backtest]
-            GenCode[generate_code] --> ASTCheck[Layer 1: AST Static Security Linter]
-            ASTCheck -->|Policy Violation| FixCode[fix_code: Self-Healing Reflection]
-            ASTCheck -->|Approved| ExecMode{Docker Daemon Active?}
-            ExecMode -->|Active| DockerRun[Layer 2: Ephemeral Docker Sandbox\n--memory 512m --cpus 1.0 --cap-drop ALL]
-            ExecMode -->|Offline| SubprocessRun[Layer 3: AST-Secured Subprocess Sandbox]
-            DockerRun -->|Crash| FixCode
-            SubprocessRun -->|Crash| FixCode
-            FixCode --> ASTCheck
-            DockerRun -->|Success| SynthReport[synthesize_report]
-            SubprocessRun -->|Success| SynthReport
-        end
-
-        subgraph FundamentalAudit [Zero-Token Fundamentals]
-            YF[yfinance API] --> CalcRatios[Altman Z-Score & Solvency Math]
-        end
-
-        subgraph RAGSubsystem [ChromaDB + Gemini Embeddings]
-            VectorSearch[Vector Similarity Search] --> ExtractCitations[Footnotes & Citations]
-        end
-    end
-
-    UserCLI --> ClassifyIntent
-    ClassifyIntent --> BacktestEngine
-    ClassifyIntent --> FundamentalAudit
-    ClassifyIntent --> RAGSubsystem
-
-    ExternalMCP <===>|Model Context Protocol| MCPServerLayer
-    MCPTool1 --> FundamentalAudit
-    MCPTool2 --> RAGSubsystem
-    MCPTool3 --> BacktestEngine
+    RiskOfficer -->|Approved: Policy Compliant| SynthMemo[synthesize_committee_memo]
+    SynthMemo --> FinalMemo([Institutional Investment Committee Memorandum])
 ```
 
 ---
 
 ## ✨ Key Features
 
+- **Hierarchical Multi-Agent Governance**: Modeled after institutional quantitative hedge funds with explicit separation of concerns between strategy generation (Quant), fundamental solvency (CFA), regulatory risk (Forensic Auditor), and independent risk auditing (CRO).
+- **Adversarial Risk Officer with Hard Veto Authority**: Deterministically enforces institutional portfolio constraints ($\text{Max Drawdown} \le 15.0\%$, $\text{Sharpe Ratio} \ge 1.0$, Altman Z-score solvency alignment), rejecting toxic strategies and driving autonomous re-hedging.
 - **Zero-Trust Ephemeral Docker Execution Sandbox**: Executes generated Python backtests inside an isolated container with `--memory 512m`, `--cpus 1.0`, `--cap-drop ALL`, and non-root execution (`UID 1000`) to eliminate arbitrary remote code execution (RCE).
 - **Pre-Execution Static AST Security Linter**: Inspects Python Abstract Syntax Trees before runtime to block dangerous modules (`os`, `subprocess`, `shutil`, `socket`), dynamic execution primitives (`eval`, `exec`, `compile`), and dunder sandbox breakouts (`__subclasses__`).
 - **Dual-Mode Graceful Fallback**: Automatically probes Docker daemon availability, falling back to a secured local subprocess runner with timeout enforcement when Docker is offline for seamless development.
 - **Universal MCP Server (`mcp 2.x`)**: Standalone server exposing quantitative ratios, 10-K RAG, and execution sandboxes over standard `stdio` transport.
-- **3-Way Stateful Graph Routing (`LangGraph`)**: Explicit `TypedDict` state schema governing transitions across quantitative backtesting, numerical ratio analysis, and qualitative RAG.
-- **Autonomous Self-Healing Reflection Loop**: Catches Python runtime exceptions and AST security rejections in the sandbox and passes the stack trace back to the agent to rewrite and re-run code (up to 3 retries).
-- **Agentic RAG Engine with ChromaDB**:
-  - Persistent vector store in `data/chroma_db/`.
-  - Semantic financial chunking (`chunk_size=900`, `chunk_overlap=150`) to preserve complex financial tables and debt covenants.
-  - Strict grounding in official 10-K filings with explicit `[Source: document, Section: ...]` citation tags to eliminate hallucinations.
+- **Agentic RAG Engine with ChromaDB**: Persistent vector store with semantic financial chunking (`chunk_size=900`, `chunk_overlap=150`) and strict source citation grounding.
 - **Ultra-Low Token Economics**: Total run cost is ~1,000–2,000 tokens (< $0.002 per run) on Gemini Flash.
 
 ---
@@ -259,6 +243,12 @@ Validates JSON-RPC schema discovery, ratio inspection, vector filing retrieval, 
 python tests/test_mcp.py
 ```
 
+### 5. Multi-Agent & Adversarial Risk Guardrail Suite (5/5 Passed)
+Validates Chief Risk Officer veto policies (Drawdown > 15%, Sharpe < 1.0), re-hedging loops, and full 9-node committee topology:
+```bash
+python tests/test_multi_agent.py
+```
+
 ---
 
 ## 📁 Project Structure
@@ -270,9 +260,9 @@ alpha-agent/
 ├── docker-compose.yml        # Multi-service orchestration (App, MCP, ChromaDB)
 ├── .dockerignore             # Excludes local virtualenvs, keys, and caches
 ├── src/
-│   ├── state.py              # LangGraph AgentState TypedDict schema
-│   ├── graph.py              # LangGraph StateGraph, 3-way routing & self-healing edges
-│   ├── prompts.py            # Prompts for quant coder, debugger, CFA & 10-K analyst
+│   ├── state.py              # Multi-Agent AgentState TypedDict schema & risk contracts
+│   ├── graph.py              # Dual-loop StateGraph (Inner code healing + Outer risk re-hedging)
+│   ├── prompts.py            # Prompts for CIO, Quant, CFA, Forensic Auditor & Risk Officer
 │   ├── llm.py                # LLM factory (Gemini / OpenAI)
 │   ├── mcp_server.py         # Standalone Model Context Protocol (MCP) server
 │   ├── rag/
@@ -291,6 +281,7 @@ alpha-agent/
 │   └── filings/              # Official SEC Form 10-K annual reports (Markdown/Text)
 ├── outputs/                  # Generated equity curve plots & backtest scripts
 ├── tests/
+│   ├── test_multi_agent.py   # 5-point Multi-Agent committee & Risk Officer guardrails
 │   ├── test_security.py      # 7-point Zero-Trust security & AST attack vector suite
 │   ├── test_agent.py         # 5-point core verification suite
 │   ├── test_rag.py           # 4-point RAG & vectorstore test suite

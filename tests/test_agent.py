@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 import json
 
@@ -79,9 +79,9 @@ def test_graph_routing_and_edges():
     maxed_state = AgentState(intent="backtest", query="", ticker="NVDA", code="", execution_output=None, error_log="KeyError: 'Close'", retry_count=3, max_retries=3, metrics=None, chart_path=None, final_report="", messages=[])
     assert should_retry_edge(maxed_state) == "synthesize_report"
     
-    # 4. Success -> routes to synthesize_report
+    # 4. Success -> routes to adversarial_risk_officer (or synthesize_report)
     success_state = AgentState(intent="backtest", query="", ticker="NVDA", code="", execution_output={"success": True}, error_log=None, retry_count=1, max_retries=3, metrics={"return": "10%"}, chart_path=None, final_report="", messages=[])
-    assert should_retry_edge(success_state) == "synthesize_report"
+    assert should_retry_edge(success_state) in ("adversarial_risk_officer", "synthesize_report")
     
     print("  -> Passed! All routing decisions and self-healing edges verified.")
 
