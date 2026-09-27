@@ -1,0 +1,46 @@
+services:
+  # Primary AlphaAgent interactive orchestrator
+  alpha-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: alpha-agent-app
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MODEL_NAME=${MODEL_NAME:-gemini-3.5-flash}
+    volumes:
+      - ./outputs:/app/outputs
+      - chroma_data:/app/data/chroma_db
+    stdin_open: true
+    tty: true
+
+  # Standalone MCP (Model Context Protocol) Server microservice
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: alpha-mcp-server
+    command: ["python", "src/mcp_server.py"]
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MODEL_NAME=${MODEL_NAME:-gemini-3.5-flash}
+    volumes:
+      - ./outputs:/app/outputs
+      - chroma_data:/app/data/chroma_db
+    restart: unless-stopped
+
+  # Hardened backtest execution sandbox image builder
+  sandbox-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile.sandbox
+    image: alpha-agent-sandbox:latest
+    container_name: alpha-sandbox-template
+    profiles:
+      - sandbox-build
+
+volumes:
+  chroma_data:
+    driver: local

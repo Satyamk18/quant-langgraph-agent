@@ -1,0 +1,31 @@
+# ==============================================================================
+# AlphaAgent Ephemeral Sandbox Container
+# Hardened execution environment for running dynamic quantitative backtest scripts
+# ==============================================================================
+
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    MPLCONFIGDIR=/sandbox/.matplotlib
+
+# Install minimal essential math & quantitative backtesting packages
+RUN pip install --no-cache-dir \
+    numpy==2.2.3 \
+    pandas==2.2.3 \
+    matplotlib==3.10.1 \
+    yfinance==0.2.54
+
+# Create non-privileged user and workspace
+RUN groupadd -g 1000 sandboxgroup && \
+    useradd -u 1000 -g sandboxgroup -m -d /sandbox sandboxuser && \
+    mkdir -p /sandbox/outputs /sandbox/.matplotlib && \
+    chown -R sandboxuser:sandboxgroup /sandbox
+
+WORKDIR /sandbox
+
+# Switch to non-root execution context
+USER sandboxuser
+
+# Default entrypoint for strategy execution
+ENTRYPOINT ["python"]

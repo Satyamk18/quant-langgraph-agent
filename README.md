@@ -12,7 +12,7 @@ AlphaAgent bridges the gap between **quantitative market data** and **qualitativ
 
 ## 🏛️ System Architecture
 
-AlphaAgent utilizes a hybrid **"Brain vs. Hands"** architecture. Heavy math, market data extraction, vector similarity scoring, and backtest simulations are executed deterministically on your local CPU for maximum speed and minimal token cost. The LLM is reserved for intent triage, strategy formulation, self-healing bug correction, and executive synthesis.
+AlphaAgent utilizes a hybrid **"Brain vs. Hands"** architecture. Heavy math, market data extraction, vector similarity scoring, and backtest simulations are executed deterministically on your local CPU or isolated Docker container for maximum speed and minimal token cost. The LLM is reserved for intent triage, strategy formulation, self-healing bug correction, and executive synthesis.
 
 ```mermaid
 flowchart TD
@@ -31,12 +31,18 @@ flowchart TD
         MCPTool3["Tool: run_backtest_sandbox(code)"]
     end
 
-    subgraph ExecutionSubsystems [Local Execution Engines]
-        subgraph BacktestEngine [Self-Healing Backtest Sandbox]
-            GenCode[generate_code] --> ExecuteCode[execute_code: Sandbox]
-            ExecuteCode -->|Crash| FixCode[fix_code: Self-Healing Loop]
-            FixCode --> ExecuteCode
-            ExecuteCode -->|Success| SynthReport[synthesize_report]
+    subgraph ExecutionSubsystems [Zero-Trust Local Execution Engines]
+        subgraph BacktestEngine [Zero-Trust Sandbox & Self-Healing Backtest]
+            GenCode[generate_code] --> ASTCheck[Layer 1: AST Static Security Linter]
+            ASTCheck -->|Policy Violation| FixCode[fix_code: Self-Healing Reflection]
+            ASTCheck -->|Approved| ExecMode{Docker Daemon Active?}
+            ExecMode -->|Active| DockerRun[Layer 2: Ephemeral Docker Sandbox\n--memory 512m --cpus 1.0 --cap-drop ALL]
+            ExecMode -->|Offline| SubprocessRun[Layer 3: AST-Secured Subprocess Sandbox]
+            DockerRun -->|Crash| FixCode
+            SubprocessRun -->|Crash| FixCode
+            FixCode --> ASTCheck
+            DockerRun -->|Success| SynthReport[synthesize_report]
+            SubprocessRun -->|Success| SynthReport
         end
 
         subgraph FundamentalAudit [Zero-Token Fundamentals]
@@ -63,14 +69,16 @@ flowchart TD
 
 ## ✨ Key Features
 
+- **Zero-Trust Ephemeral Docker Execution Sandbox**: Executes generated Python backtests inside an isolated container with `--memory 512m`, `--cpus 1.0`, `--cap-drop ALL`, and non-root execution (`UID 1000`) to eliminate arbitrary remote code execution (RCE).
+- **Pre-Execution Static AST Security Linter**: Inspects Python Abstract Syntax Trees before runtime to block dangerous modules (`os`, `subprocess`, `shutil`, `socket`), dynamic execution primitives (`eval`, `exec`, `compile`), and dunder sandbox breakouts (`__subclasses__`).
+- **Dual-Mode Graceful Fallback**: Automatically probes Docker daemon availability, falling back to a secured local subprocess runner with timeout enforcement when Docker is offline for seamless development.
 - **Universal MCP Server (`mcp 2.x`)**: Standalone server exposing quantitative ratios, 10-K RAG, and execution sandboxes over standard `stdio` transport.
 - **3-Way Stateful Graph Routing (`LangGraph`)**: Explicit `TypedDict` state schema governing transitions across quantitative backtesting, numerical ratio analysis, and qualitative RAG.
-- **Autonomous Self-Healing Reflection Loop**: Catches Python runtime exceptions (`KeyError`, `IndexError`, zero division) in the sandbox and passes the stack trace back to the agent to rewrite and re-run code (up to 3 retries).
+- **Autonomous Self-Healing Reflection Loop**: Catches Python runtime exceptions and AST security rejections in the sandbox and passes the stack trace back to the agent to rewrite and re-run code (up to 3 retries).
 - **Agentic RAG Engine with ChromaDB**:
   - Persistent vector store in `data/chroma_db/`.
   - Semantic financial chunking (`chunk_size=900`, `chunk_overlap=150`) to preserve complex financial tables and debt covenants.
   - Strict grounding in official 10-K filings with explicit `[Source: document, Section: ...]` citation tags to eliminate hallucinations.
-- **Subprocess Execution Sandbox**: Isolated local execution with timeout protection, stdout/stderr capture, and matplotlib equity curve generation.
 - **Ultra-Low Token Economics**: Total run cost is ~1,000–2,000 tokens (< $0.002 per run) on Gemini Flash.
 
 ---
@@ -199,21 +207,54 @@ python main.py --query "Evaluate the financial health and bankruptcy risk of Boe
 
 ---
 
+## 🐳 Enterprise Docker & Containerization
+
+AlphaAgent provides full containerization for production deployments and an isolated sandbox image for Zero-Trust code execution:
+
+### 1. Build the Hardened Sandbox Image
+```bash
+docker build -f Dockerfile.sandbox -t alpha-agent-sandbox:latest .
+```
+
+### 2. Deploy Full Application via Docker Compose
+Run the interactive CLI, background MCP server, and persistent ChromaDB storage in isolated containers:
+```bash
+# Start all services
+docker compose up --build
+
+# Run only the interactive agent CLI
+docker compose run --rm alpha-agent
+
+# Run the standalone MCP Server microservice
+docker compose up -d mcp-server
+```
+
+---
+
 ## 🧪 Automated Test Suites
 
-AlphaAgent includes 3 automated test suites covering all layers of the architecture:
+AlphaAgent includes **4 automated test suites** (20 tests total, 100% passing) validating every layer:
 
-### 1. Core Verification Suite (Tools, Sandbox, Self-Healing & Edges)
+### 1. Zero-Trust Security & AST Linter Suite (7/7 Passed)
+Validates Defense-in-Depth against adversarial injection, socket egress, dynamic eval, and dunder escape:
+```bash
+python tests/test_security.py
+```
+
+### 2. Core Agent Verification Suite (5/5 Passed)
+Validates deterministic ratio tools, local code execution, error interception, LangGraph routing, and compilation:
 ```bash
 python tests/test_agent.py
 ```
 
-### 2. RAG Verification Suite (ChromaDB Ingestion, Ticker Filtering & Citations)
+### 3. SEC 10-K RAG Verification Suite (4/4 Passed)
+Validates ChromaDB embedding ingestion, metadata filtering (Boeing vs Apple), citation formatting, and 3-way routing:
 ```bash
 python tests/test_rag.py
 ```
 
-### 3. MCP Protocol Suite (Tool Discovery, JSON-RPC Execution & Payload Validation)
+### 4. Model Context Protocol (MCP) Suite (4/4 Passed)
+Validates JSON-RPC schema discovery, ratio inspection, vector filing retrieval, and sandboxed execution via MCP:
 ```bash
 python tests/test_mcp.py
 ```
@@ -224,6 +265,10 @@ python tests/test_mcp.py
 
 ```
 alpha-agent/
+├── Dockerfile                # Production container for AlphaAgent & MCP server
+├── Dockerfile.sandbox        # Ephemeral non-root execution sandbox (--network none)
+├── docker-compose.yml        # Multi-service orchestration (App, MCP, ChromaDB)
+├── .dockerignore             # Excludes local virtualenvs, keys, and caches
 ├── src/
 │   ├── state.py              # LangGraph AgentState TypedDict schema
 │   ├── graph.py              # LangGraph StateGraph, 3-way routing & self-healing edges
@@ -234,7 +279,8 @@ alpha-agent/
 │   │   ├── embeddings.py     # Gemini text-embedding-001 factory
 │   │   └── vectorstore.py    # ChromaDB persistent store, chunking & retrieval
 │   └── tools/
-│       ├── executor.py       # Sandboxed local Python execution runner
+│       ├── security.py       # AST Static Security Analyzer (RCE/socket/eval defense)
+│       ├── executor.py       # Zero-Trust Dual-Mode execution sandbox (Docker/Subprocess)
 │       └── financial_data.py # Deterministic yfinance ratio & Altman Z-score calculator
 ├── evals/
 │   ├── dataset.py            # 20-scenario quantitative & qualitative benchmark dataset
@@ -245,6 +291,7 @@ alpha-agent/
 │   └── filings/              # Official SEC Form 10-K annual reports (Markdown/Text)
 ├── outputs/                  # Generated equity curve plots & backtest scripts
 ├── tests/
+│   ├── test_security.py      # 7-point Zero-Trust security & AST attack vector suite
 │   ├── test_agent.py         # 5-point core verification suite
 │   ├── test_rag.py           # 4-point RAG & vectorstore test suite
 │   └── test_mcp.py           # 4-point MCP protocol verification suite

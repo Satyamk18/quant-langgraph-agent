@@ -1,0 +1,26 @@
+# Git
+.git
+.gitignore
+
+# Python
+.venv
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Secrets & Local Config
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# Outputs & Scratch
+scratch/
+outputs/*.png
+outputs/*.py
+data/chroma_db/
